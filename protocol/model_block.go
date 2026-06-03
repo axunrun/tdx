@@ -19,6 +19,12 @@ func Float64FromStr(s string) float64 {
 	return f
 }
 
+// IntFromStr 解析十进制字符串为 int, 失败/空返回 0。
+func IntFromStr(s string) int {
+	n, _ := strconv.Atoi(strings.TrimSpace(s))
+	return n
+}
+
 // 板块文件协议（地域/板块/概念/指数）。参考 pytdx get_block_info + block_reader。
 const (
 	TypeBlockMeta uint16 = 0x02C5 // 板块文件元信息（大小）
