@@ -12,10 +12,14 @@ const (
 	TypeBlockInfo uint16 = 0x06B9 // 板块文件内容（分块）
 
 	// 通达信板块文件名。
-	BlockFileZS = "block_zs.dat" // 指数板块（行业）
+	BlockFileZS = "block_zs.dat" // 指数板块
 	BlockFileGN = "block_gn.dat" // 概念板块
 	BlockFileFG = "block_fg.dat" // 风格板块（含地域）
-	BlockFile   = "block.dat"    // 默认板块
+	BlockFileHY = "block_hy.dat" // 行业板块（部分服务器提供）
+	BlockFile   = "block.dat"    // 一般板块（指数等）
+
+	// 通达信行业归属配置文件（文本，每股票对应通达信行业/申万行业）。
+	FileTdxHy = "tdxhy.cfg"
 
 	blockChunk = 0x7530 // 单次下载块大小 30000
 )
@@ -68,6 +72,38 @@ func (block) DecodeInfo(bs []byte) (*BlockInfoResp, error) {
 		return &BlockInfoResp{Data: nil}, nil
 	}
 	return &BlockInfoResp{Data: bs[4:]}, nil
+}
+
+// TdxHy 一只股票的行业归属（来自 tdxhy.cfg）。
+type TdxHy struct {
+	Market uint8  // 0=深 1=沪
+	Code   string // 6 位代码
+	TdxHy  string // 通达信新行业代码（T 前缀）
+	SwHy   string // 申万行业代码（X 前缀）
+}
+
+// ParseTdxHy 解析 tdxhy.cfg 文本：每行 `市场|代码|通达信行业|||申万行业`。
+func ParseTdxHy(data []byte) []*TdxHy {
+	lines := strings.Split(string(data), "\n")
+	out := make([]*TdxHy, 0, len(lines))
+	for _, ln := range lines {
+		ln = strings.TrimRight(ln, "\r")
+		if ln == "" {
+			continue
+		}
+		f := strings.Split(ln, "|")
+		if len(f) < 3 || len(f[0]) == 0 {
+			continue
+		}
+		hy := &TdxHy{Market: uint8(f[0][0] - '0'), Code: f[1], TdxHy: f[2]}
+		if len(f) >= 6 {
+			hy.SwHy = f[5]
+		} else {
+			hy.SwHy = f[len(f)-1]
+		}
+		out = append(out, hy)
+	}
+	return out
 }
 
 // ParseBlockFile 解析完整板块文件 → 板块列表。

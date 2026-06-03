@@ -502,8 +502,9 @@ func (this *Client) GetFinanceInfo(exchange protocol.Exchange, code string) (*pr
 	return result.(*protocol.FinanceInfo), nil
 }
 
-// GetBlockData 下载并解析通达信板块文件（如 protocol.BlockFileGN 概念）→ 板块列表。
-func (this *Client) GetBlockData(file string) ([]*protocol.Block, error) {
+// GetBlockFileRaw 下载通达信服务器文件（板块/配置）原始字节，分块拉取后拼接。
+// 适用于二进制板块文件(block*.dat)与文本配置(tdxhy.cfg 等)。
+func (this *Client) GetBlockFileRaw(file string) ([]byte, error) {
 	mr, err := this.SendFrame(protocol.MBlock.FrameMeta(file))
 	if err != nil {
 		return nil, err
@@ -530,7 +531,25 @@ func (this *Client) GetBlockData(file string) ([]*protocol.Block, error) {
 		buf = append(buf, info.Data...)
 		start += uint32(len(info.Data))
 	}
+	return buf, nil
+}
+
+// GetBlockData 下载并解析通达信板块文件（如 protocol.BlockFileGN 概念）→ 板块列表。
+func (this *Client) GetBlockData(file string) ([]*protocol.Block, error) {
+	buf, err := this.GetBlockFileRaw(file)
+	if err != nil {
+		return nil, err
+	}
 	return protocol.ParseBlockFile(buf), nil
+}
+
+// GetTdxHy 下载并解析 tdxhy.cfg → 每只股票的通达信/申万行业归属。
+func (this *Client) GetTdxHy() ([]*protocol.TdxHy, error) {
+	buf, err := this.GetBlockFileRaw(protocol.FileTdxHy)
+	if err != nil {
+		return nil, err
+	}
+	return protocol.ParseTdxHy(buf), nil
 }
 
 // GetMinute 获取分时数据,todo 解析好像不对,先用历史数据
